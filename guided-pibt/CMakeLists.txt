@@ -77,6 +77,11 @@ if(FOCAL_SEARCH)
     add_definitions(-DFOCAL_SEARCH=${FOCAL_SEARCH})
 endif()
 
+if(USE_BPR_HEURISTIC)
+    message(STATUS "USE_BPR_HEURISTIC is enabled - BPR cost function will be used")
+    add_definitions(-DUSE_BPR_HEURISTIC)
+endif()
+
 add_definitions(-DROBOT_RUNNERS)
 
 IF(NOT CMAKE_BUILD_TYPE)

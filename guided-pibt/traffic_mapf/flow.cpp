@@ -1,7 +1,9 @@
 
-
 #include "flow.hpp"
 
+#ifdef USE_BPR_HEURISTIC
+#include "bpr.hpp"
+#endif
 
 #include <random>
 #include <unordered_set>
@@ -86,6 +88,11 @@ void remove_traj(TrajLNS& lns, int agent){
         assert(lns.vertex_flow >= 0);
         assert(lns.op_flow == get_all_op_flow(lns));
     }
+
+#ifdef USE_BPR_HEURISTIC
+    // Synchronize BPR flow after removing trajectory
+    sync_bpr_after_remove(lns, agent);
+#endif
 }
 
 void add_traj(TrajLNS& lns, int agent){
@@ -136,6 +143,11 @@ void add_traj(TrajLNS& lns, int agent){
 
 
     }
+
+#ifdef USE_BPR_HEURISTIC
+    // Synchronize BPR flow after adding trajectory
+    sync_bpr_after_add(lns, agent);
+#endif
 }
 
 void init_traj(TrajLNS& lns,std::vector<int>& traffic,int amount, bool remove_and_plan){
@@ -163,7 +175,11 @@ void init_traj(TrajLNS& lns,std::vector<int>& traffic,int amount, bool remove_an
         if (lns.trajs[i].empty() || remove_and_plan){
             int start = lns.env->curr_states[i].location;
             int goal = lns.tasks[i];
+#ifdef USE_BPR_HEURISTIC
+            lns.goal_nodes[i] = aStarOF(lns.env, lns, lns.flow, lns.heuristics[goal],traffic,lns.trajs[i],lns.mem,start,goal);
+#else
             lns.goal_nodes[i] = aStarOF(lns.env,lns.flow, lns.heuristics[goal],traffic,lns.trajs[i],lns.mem,start,goal);
+#endif
 
             add_traj(lns,i);
             count++;
@@ -242,7 +258,11 @@ void init_dist_table(TrajLNS& lns,std::vector<int>& traffic, int amount){
 void update_traj(TrajLNS& lns, int i, std::vector<int>& traffic){
     int start = lns.env->curr_states[i].location;
     int goal = lns.tasks[i];
+#ifdef USE_BPR_HEURISTIC
+    lns.goal_nodes[i] = aStarOF(lns.env, lns, lns.flow, lns.heuristics[goal],traffic,lns.trajs[i],lns.mem,start,goal);
+#else
     lns.goal_nodes[i] = aStarOF(lns.env,lns.flow, lns.heuristics[goal],traffic,lns.trajs[i],lns.mem,start,goal);
+#endif
     add_traj(lns,i);
 }
 

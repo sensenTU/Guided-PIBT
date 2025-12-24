@@ -3,6 +3,11 @@
 
 #include "search.hpp"
 
+#ifdef USE_BPR_HEURISTIC
+#include "TrajLNS.h"
+#include "bpr.hpp"
+#endif
+
 
 namespace TrafficMAPF{
 std::chrono::nanoseconds t;
@@ -53,7 +58,11 @@ s_node singleShortestPath(SharedEnvironment* env, std::vector<Int4>& flow,
 }
 
 
-s_node aStarOF(SharedEnvironment* env, std::vector<Int4>& flow,
+s_node aStarOF(SharedEnvironment* env,
+#ifdef USE_BPR_HEURISTIC
+    const TrajLNS& lns,  // BPR parameter
+#endif
+    std::vector<Int4>& flow,
     HeuristicTable& ht,std::vector<int>& traffic, Traj& traj,
     MemoryPool& mem, int start, int goal)
 {
@@ -69,9 +78,17 @@ s_node aStarOF(SharedEnvironment* env, std::vector<Int4>& flow,
 
     //  s_node* root = mem.generate_node(start,0,manhattanDistance(start,goal,env),0,0);
     if(ht.empty())
-        h = manhattanDistance(start,goal,env);
+#ifdef USE_BPR_HEURISTIC
+        h = manhattanDistance(start,goal,env) * TrajLNS::COST_SCALE;  // Scale heuristic
+#else
+        h = manhattanDistance(start,goal,env);  // Baseline: no scaling
+#endif
     else
-        h = get_heuristic(ht,env, traffic, flow, start);
+#ifdef USE_BPR_HEURISTIC
+        h = get_heuristic(ht,env, traffic, flow, start) * TrajLNS::COST_SCALE;  // Scale heuristic
+#else
+        h = get_heuristic(ht,env, traffic, flow, start);  // Baseline: no scaling
+#endif
     
 
     
@@ -144,7 +161,14 @@ s_node aStarOF(SharedEnvironment* env, std::vector<Int4>& flow,
                 continue;
             }
 
-            cost = curr->g+1;
+#ifdef USE_BPR_HEURISTIC
+            // BPR cost: already includes full edge cost (free-flow + congestion penalty)
+            int edge_cost = get_bpr_edge_cost(lns, curr->id, next);
+            cost = curr->g + edge_cost;  // No extra +1 or +COST_SCALE
+#else
+            // Baseline: traditional cost +1
+            cost = curr->g + 1;
+#endif
             tie_breaker = curr->tie_breaker;
 
 
@@ -163,9 +187,17 @@ s_node aStarOF(SharedEnvironment* env, std::vector<Int4>& flow,
             all_vertex_flow = curr->all_vertex_flow;
 
             if(ht.empty())
-                h = manhattanDistance(next,goal,env);
+#ifdef USE_BPR_HEURISTIC
+                h = manhattanDistance(next,goal,env) * TrajLNS::COST_SCALE;  // Scale heuristic
+#else
+                h = manhattanDistance(next,goal,env);  // Baseline: no scaling
+#endif
             else
-                h = get_heuristic(ht,env, traffic, flow, next);
+#ifdef USE_BPR_HEURISTIC
+                h = get_heuristic(ht,env, traffic, flow, next) * TrajLNS::COST_SCALE;  // Scale heuristic
+#else
+                h = get_heuristic(ht,env, traffic, flow, next);  // Baseline: no scaling
+#endif
 
             diff = next - curr->id;
             d = get_d(diff,env);
