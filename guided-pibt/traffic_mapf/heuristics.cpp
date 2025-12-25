@@ -2,6 +2,10 @@
 #include "heuristics.hpp"
 #include <queue>
 
+#ifdef USE_BPR_HEURISTIC
+#include "TrajLNS.h"
+#endif
+
 namespace TrafficMAPF{
 
 void init_heuristic(HeuristicTable& ht, SharedEnvironment* env, int goal_location){
@@ -17,7 +21,13 @@ void init_heuristic(HeuristicTable& ht, SharedEnvironment* env, int goal_locatio
 
 
 int get_heuristic(HeuristicTable& ht, SharedEnvironment* env, std::vector<int>& traffic, std::vector<Int4>& flow, int source){
-		if (ht.htable[source] < MAX_TIMESTEP) return ht.htable[source];
+		if (ht.htable[source] < MAX_TIMESTEP) {
+#ifdef USE_BPR_HEURISTIC
+			return ht.htable[source] * TrajLNS::COST_SCALE;  // Scale to match BPR edge costs (1000x)
+#else
+			return ht.htable[source];  // Baseline: no scaling
+#endif
+		}
 
 		std::vector<int> neighbors;
 		int cost, diff, reverse_d, op_flow, vertex_flow;
@@ -46,12 +56,21 @@ int get_heuristic(HeuristicTable& ht, SharedEnvironment* env, std::vector<int>& 
 				
 			}
 
-			if (source == curr.location)
-				return curr.value;
+			if (source == curr.location) {
+#ifdef USE_BPR_HEURISTIC
+				return curr.value * TrajLNS::COST_SCALE;  // Scale to match BPR edge costs (1000x)
+#else
+				return curr.value;  // Baseline: no scaling
+#endif
+			}
 		}
 
 
+#ifdef USE_BPR_HEURISTIC
+		return INT_MAX;  // Return INT_MAX to avoid overflow when scaling
+#else
 		return MAX_TIMESTEP;
+#endif
 }
 
 

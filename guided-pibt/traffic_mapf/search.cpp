@@ -66,6 +66,14 @@ s_node aStarOF(SharedEnvironment* env,
     HeuristicTable& ht,std::vector<int>& traffic, Traj& traj,
     MemoryPool& mem, int start, int goal)
 {
+    // DEBUG: Track when search is called
+    static int search_call_count = 0;
+    search_call_count++;
+    if (search_call_count <= 5) {
+        std::cerr << "DEBUG: aStarOF called #" << search_call_count
+                  << " from " << start << " to " << goal << std::endl;
+    }
+
     // TimePoint start_time = std::chrono::steady_clock::now();
     mem.reset();
     // t+=std::chrono::steady_clock::now()-start_time;
@@ -85,7 +93,7 @@ s_node aStarOF(SharedEnvironment* env,
 #endif
     else
 #ifdef USE_BPR_HEURISTIC
-        h = get_heuristic(ht,env, traffic, flow, start) * TrajLNS::COST_SCALE;  // Scale heuristic
+        h = get_heuristic(ht,env, traffic, flow, start);  // Already scaled by get_heuristic()
 #else
         h = get_heuristic(ht,env, traffic, flow, start);  // Baseline: no scaling
 #endif
@@ -150,6 +158,18 @@ s_node aStarOF(SharedEnvironment* env,
         }
         expanded++;
 
+        // DEBUG: Detect infinite loops
+        if (expanded % 100000 == 0) {
+            std::cerr << "DEBUG: Search #" << search_call_count
+                      << " expanded " << expanded << " nodes, curr->id=" << curr->id
+                      << ", goal=" << goal << std::endl;
+        }
+        if (expanded > 10000000) {
+            std::cerr << "ERROR: Search #" << search_call_count
+                      << " expanded > 10M nodes! Aborting." << std::endl;
+            break;
+        }
+
 
         // std::cout<<curr->id<<":"<< curr->get_f()<<","<< curr->get_h() <<","<< curr->get_op_flow()<<"," << curr->get_all_vertex_flow()<<"," << std::endl;
         getNeighborLocs(env,neighbors,curr->id);
@@ -164,6 +184,12 @@ s_node aStarOF(SharedEnvironment* env,
 #ifdef USE_BPR_HEURISTIC
             // BPR cost: already includes full edge cost (free-flow + congestion penalty)
             int edge_cost = get_bpr_edge_cost(lns, curr->id, next);
+            // DEBUG: Print suspicious edge costs
+            static int debug_count = 0;
+            if (debug_count < 20 && edge_cost >= 10000) {
+                std::cerr << "DEBUG: High edge cost " << edge_cost << " from " << curr->id << " to " << next << std::endl;
+                debug_count++;
+            }
             cost = curr->g + edge_cost;  // No extra +1 or +COST_SCALE
 #else
             // Baseline: traditional cost +1
@@ -188,13 +214,13 @@ s_node aStarOF(SharedEnvironment* env,
 
             if(ht.empty())
 #ifdef USE_BPR_HEURISTIC
-                h = manhattanDistance(next,goal,env) * TrajLNS::COST_SCALE;  // Scale heuristic
+                h = manhattanDistance(next,goal,env) * TrajLNS::COST_SCALE;  // Scale to match g (1000x)
 #else
                 h = manhattanDistance(next,goal,env);  // Baseline: no scaling
 #endif
             else
 #ifdef USE_BPR_HEURISTIC
-                h = get_heuristic(ht,env, traffic, flow, next) * TrajLNS::COST_SCALE;  // Scale heuristic
+                h = get_heuristic(ht,env, traffic, flow, next);  // Already scaled by get_heuristic()
 #else
                 h = get_heuristic(ht,env, traffic, flow, next);  // Baseline: no scaling
 #endif

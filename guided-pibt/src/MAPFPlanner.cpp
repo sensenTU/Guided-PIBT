@@ -46,6 +46,15 @@ void MAPFPlanner::initialize(int preprocess_time_limit) {
 
     trajLNS = TrajLNS(env);
     trajLNS.init_mem();
+    trajLNS.init_bpr_flow();  // Initialize BPR directional flow array
+
+    // DEBUG: Print dimension information
+    std::cerr << "DEBUG DIMENSIONS:" << std::endl;
+    std::cerr << "  env->rows: " << env->rows << std::endl;
+    std::cerr << "  env->cols: " << env->cols << std::endl;
+    std::cerr << "  env->map.size(): " << env->map.size() << std::endl;
+    std::cerr << "  trajLNS.directional_flow.size(): " << trajLNS.directional_flow.size() << std::endl;
+    std::cerr << "  Expected size (rows*cols): " << (env->rows * env->cols) << std::endl;
 
     env->init_neighbor();
 

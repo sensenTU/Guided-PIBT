@@ -175,11 +175,24 @@ void init_traj(TrajLNS& lns,std::vector<int>& traffic,int amount, bool remove_an
         if (lns.trajs[i].empty() || remove_and_plan){
             int start = lns.env->curr_states[i].location;
             int goal = lns.tasks[i];
+
+            // DEBUG: Track agent path planning
+            static int agent_plan_count = 0;
+            agent_plan_count++;
+            if (agent_plan_count <= 3) {
+                std::cerr << "DEBUG: Planning path for agent " << i
+                          << " from " << start << " to " << goal << std::endl;
+            }
+
 #ifdef USE_BPR_HEURISTIC
             lns.goal_nodes[i] = aStarOF(lns.env, lns, lns.flow, lns.heuristics[goal],traffic,lns.trajs[i],lns.mem,start,goal);
 #else
             lns.goal_nodes[i] = aStarOF(lns.env,lns.flow, lns.heuristics[goal],traffic,lns.trajs[i],lns.mem,start,goal);
 #endif
+
+            if (agent_plan_count <= 3) {
+                std::cerr << "DEBUG: Agent " << i << " path planned, length=" << lns.trajs[i].size() << std::endl;
+            }
 
             add_traj(lns,i);
             count++;

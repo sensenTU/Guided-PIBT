@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <climits>
 #include <memory>
+#include "heatmap_stats.hpp"
 
 namespace po = boost::program_options;
 using json = nlohmann::json;
@@ -133,6 +134,17 @@ int main(int argc, char** argv) {
     }
 
     system_ptr->simulate(simuTime);
+
+    // Print traffic statistics for qualitative behavior analysis
+#ifdef USE_BPR_HEURISTIC
+    {
+        std::string bpr_label = "BPR (α=" + std::to_string(TrafficMAPF::TrajLNS::BPR_ALPHA) +
+                               ", β=" + std::to_string(TrafficMAPF::TrajLNS::BPR_BETA) + ")";
+        TrafficMAPF::print_traffic_statistics(planner->trajLNS, bpr_label);
+    }
+#else
+    TrafficMAPF::print_traffic_statistics(planner->trajLNS, "BASELINE");
+#endif
 
     if (!vm["evaluationMode"].as<bool>()){
         system_ptr->saveResults(vm["output"].as<std::string>());

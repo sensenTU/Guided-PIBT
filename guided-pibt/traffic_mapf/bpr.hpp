@@ -3,6 +3,7 @@
 
 #include "TrajLNS.h"
 #include <algorithm>
+#include <climits>
 
 namespace TrafficMAPF {
 
@@ -27,6 +28,16 @@ inline int calculate_bpr_cost(double f_co, double f_reverse) {
 
     double cost_double = TrajLNS::BPR_T0 * (1.0 + TrajLNS::BPR_ALPHA * ratio4);
 
+    // DEBUG: Track unusually high costs
+    static int high_cost_count = 0;
+    if (cost_double > 10000 && high_cost_count < 10) {
+        std::cerr << "BPR High Cost #" << (high_cost_count + 1)
+                  << ": f_co=" << f_co << ", f_reverse=" << f_reverse
+                  << ", c_eff=" << c_eff << ", ratio4=" << ratio4
+                  << ", cost=" << cost_double << std::endl;
+        high_cost_count++;
+    }
+
     // Overflow protection: clamp to maximum safe integer value
     // Use INT_MAX/2 to leave room for further calculations
     constexpr int MAX_SAFE_COST = INT_MAX / 2;
@@ -48,9 +59,66 @@ inline int calculate_bpr_cost(double f_co, double f_reverse) {
 // Returns:
 //   Integer cost scaled by COST_SCALE (1000)
 inline int get_bpr_edge_cost(const TrajLNS& lns, int u, int v) {
+    // Boundary check to prevent segmentation fault
+    int size = (int)lns.directional_flow.size();
+    if (u < 0 || u >= size || v < 0 || v >= size) {
+        // Invalid edge - return maximum penalty
+        static int oob_error_count = 0;
+        if (oob_error_count < 20) {
+            std::cerr << "BPR OOB Error #" << (oob_error_count + 1)
+                      << ": u=" << u << ", v=" << v << ", size=" << size
+                      << " (u_valid=" << (u >= 0 && u < size)
+                      << ", v_valid=" << (v >= 0 && v < size) << ")" << std::endl;
+            oob_error_count++;
+        }
+        return 10000;
+    }
+
+    // Check if map locations are valid (not obstacles)
+    if (u >= (int)lns.env->map.size() || v >= (int)lns.env->map.size()) {
+        static int map_oob_count = 0;
+        if (map_oob_count < 10) {
+            std::cerr << "BPR Map OOB #" << (map_oob_count + 1)
+                      << ": u=" << u << ", v=" << v << ", map.size()=" << lns.env->map.size() << std::endl;
+            map_oob_count++;
+        }
+        return 10000;
+    }
+
+    // Check if locations are traversable (not obstacles)
+    if (lns.env->map[u] == 1 || lns.env->map[v] == 1) {
+        // One or both locations are obstacles
+        static int obstacle_count = 0;
+        if (obstacle_count < 10) {
+            std::cerr << "BPR Obstacle #" << (obstacle_count + 1)
+                      << ": u=" << u << "(map=" << (int)lns.env->map[u] << ")"
+                      << ", v=" << v << "(map=" << (int)lns.env->map[v] << ")" << std::endl;
+            obstacle_count++;
+        }
+        return 10000;
+    }
+
+    // Special case: wait action (u == v)
+    if (u == v) {
+        // No movement, return free-flow cost
+        return TrajLNS::BPR_T0;
+    }
+
     // Calculate direction using existing utility function
     int diff = v - u;
     int d = get_d(diff, lns.env);
+
+    // Validate direction
+    if (d < 0 || d >= 4) {
+        static int invalid_dir_count = 0;
+        if (invalid_dir_count < 10) {
+            std::cerr << "BPR Invalid Dir #" << (invalid_dir_count + 1)
+                      << ": u=" << u << ", v=" << v << ", diff=" << diff
+                      << ", d=" << d << std::endl;
+            invalid_dir_count++;
+        }
+        return 10000;
+    }
 
     // Co-directional flow (u -> v)
     double f_co = lns.directional_flow[u][d];
@@ -58,7 +126,16 @@ inline int get_bpr_edge_cost(const TrajLNS& lns, int u, int v) {
     // Reverse directional flow (v -> u)
     double f_reverse = lns.directional_flow[v][(d + 2) % 4];
 
-    return calculate_bpr_cost(f_co, f_reverse);
+    // Calculate BPR cost with T0 = 1000 (already scaled by COST_SCALE)
+    // NO normalization: keep full precision to preserve gradient information
+    // Free-flow: ~1000, Light congestion: ~1050, Heavy congestion: ~2000+
+    int cost = calculate_bpr_cost(f_co, f_reverse);
+
+    // Clamp to prevent overflow in A* g_score accumulation
+    // Maximum single edge cost capped at 1000000 (1000x extreme congestion)
+    // This allows ~2000 steps before INT_MAX overflow
+    constexpr int MAX_BPR_COST = 1000000;
+    return std::min(cost, MAX_BPR_COST);
 }
 
 // ========== EMA Flow Update Functions ==========

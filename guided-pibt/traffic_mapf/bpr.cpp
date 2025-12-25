@@ -13,6 +13,11 @@ namespace TrafficMAPF {
 //   d - direction (0:East, 1:South, 2:West, 3:North)
 //   target_count - target integer count from Int4 flow
 inline void update_bpr_flow_ema_to_count(TrajLNS& lns, int loc, int d, int target_count) {
+    // Boundary check to prevent segmentation fault
+    if (loc < 0 || loc >= (int)lns.directional_flow.size() || d < 0 || d >= 4) {
+        return;  // Invalid location or direction, skip update
+    }
+
     double& flow = lns.directional_flow[loc][d];
     double target_usage = static_cast<double>(target_count);
     flow = (1.0 - TrajLNS::EMA_ETA) * flow + TrajLNS::EMA_ETA * target_usage;
@@ -24,6 +29,11 @@ inline void update_bpr_flow_ema_to_count(TrajLNS& lns, int loc, int d, int targe
 //   lns - Trajectory LNS object
 //   agent - agent index
 void sync_bpr_after_add(TrajLNS& lns, int agent) {
+    // Check if agent index is valid
+    if (agent < 0 || agent >= (int)lns.trajs.size()) {
+        return;
+    }
+
     const Traj& traj = lns.trajs[agent];
 
     if (traj.size() <= 1) {
@@ -33,6 +43,12 @@ void sync_bpr_after_add(TrajLNS& lns, int agent) {
     for (size_t i = 1; i < traj.size(); i++) {
         int u = traj[i - 1];  // Source location
         int v = traj[i];      // Target location
+
+        // Boundary check for locations
+        if (u < 0 || u >= (int)lns.directional_flow.size() ||
+            v < 0 || v >= (int)lns.directional_flow.size()) {
+            continue;  // Skip invalid locations
+        }
 
         // Calculate direction
         int diff = v - u;
@@ -51,6 +67,11 @@ void sync_bpr_after_add(TrajLNS& lns, int agent) {
 //   lns - Trajectory LNS object
 //   agent - agent index
 void sync_bpr_after_remove(TrajLNS& lns, int agent) {
+    // Check if agent index is valid
+    if (agent < 0 || agent >= (int)lns.trajs.size()) {
+        return;
+    }
+
     const Traj& traj = lns.trajs[agent];
 
     if (traj.size() <= 1) {
@@ -60,6 +81,12 @@ void sync_bpr_after_remove(TrajLNS& lns, int agent) {
     for (size_t i = 1; i < traj.size(); i++) {
         int u = traj[i - 1];  // Source location
         int v = traj[i];      // Target location
+
+        // Boundary check for locations
+        if (u < 0 || u >= (int)lns.directional_flow.size() ||
+            v < 0 || v >= (int)lns.directional_flow.size()) {
+            continue;  // Skip invalid locations
+        }
 
         // Calculate direction
         int diff = v - u;

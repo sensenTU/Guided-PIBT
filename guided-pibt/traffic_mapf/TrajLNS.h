@@ -77,13 +77,14 @@ class TrajLNS{
     std::vector<std::array<double, 4>> directional_flow;
 
     // BPR parameters (fixed-point scaling for integer-based A*)
+    // SOFT PARAMETERS - Tuned for balance between congestion guidance and performance
     static constexpr int COST_SCALE = 1000;           // Fixed-point scaling factor
     static constexpr int BPR_T0 = 1000;               // Free-flow time (1.0 * COST_SCALE)
-    static constexpr double BPR_ALPHA = 0.15;         // BPR α parameter
-    static constexpr double BPR_BETA = 4.0;           // BPR β parameter (fixed at 4)
-    static constexpr double C_MAX = 1.0;              // Maximum capacity
-    static constexpr double GAMMA = 0.8;              // Reverse flow impact coefficient
-    static constexpr double EMA_ETA = 0.2;            // EMA smoothing coefficient
+    static constexpr double BPR_ALPHA = 0.15;         // BPR α parameter (congestion penalty)
+    static constexpr double BPR_BETA = 1.0;           // BPR β parameter (squared penalty)
+    static constexpr double C_MAX = 2.0;              // Maximum capacity
+    static constexpr double GAMMA = 0.2;              // Reverse flow impact (moderate)
+    static constexpr double EMA_ETA = 0.05;           // EMA smoothing (smooth transitions)
     static constexpr double MIN_CAPACITY = 0.01;      // Minimum capacity to prevent division by zero
 
     void init_mem(){

@@ -151,11 +151,25 @@ void BaseSystem::simulate(int simulation_time){
 
     for (; timestep < simulation_time && ! this->has_timeout; ) {
 
+        // DEBUG: Track timestep progression
+        static int debug_timestep_count = 0;
+        if (timestep == 0 && debug_timestep_count < 3) {
+            std::cerr << "DEBUG: Starting timestep " << timestep << std::endl;
+            debug_timestep_count++;
+        }
+
         // cout << "----------------------------" << std::endl;
         // cout << "Timestep " << timestep << std::endl;
 
         // find a plan
+        if (timestep == 0 && debug_timestep_count <= 3) {
+            std::cerr << "DEBUG: Before sync_shared_env()" << std::endl;
+        }
         sync_shared_env();
+        if (timestep == 0 && debug_timestep_count <= 3) {
+            std::cerr << "DEBUG: After sync_shared_env()" << std::endl;
+        }
+
         // vector<Action> actions = planner->plan(plan_time_limit);
         // vector<Action> actions;
         // planner->plan(plan_time_limit,actions);
