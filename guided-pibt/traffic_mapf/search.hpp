@@ -9,12 +9,12 @@
 #include "search_node.h"
 #include "heuristics.hpp"
 
+namespace TrafficMAPF{
+
 // Forward declaration to avoid circular dependency
 #ifdef USE_BPR_HEURISTIC
 class TrajLNS;
 #endif
-
-namespace TrafficMAPF{
 //a astar minimized the opposide traffic flow with existing traffic flow
 
 s_node singleShortestPath(SharedEnvironment* env, std::vector<Int4>& flow,

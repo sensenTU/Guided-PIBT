@@ -27,6 +27,13 @@ inline int calculate_bpr_cost(double f_co, double f_reverse) {
 
     double cost_double = TrajLNS::BPR_T0 * (1.0 + TrajLNS::BPR_ALPHA * ratio4);
 
+    // Overflow protection: clamp to maximum safe integer value
+    // Use INT_MAX/2 to leave room for further calculations
+    constexpr int MAX_SAFE_COST = INT_MAX / 2;
+    if (cost_double > MAX_SAFE_COST) {
+        cost_double = MAX_SAFE_COST;
+    }
+
     // Convert to fixed-point integer (round to nearest)
     int cost = static_cast<int>(cost_double + 0.5);
 
@@ -53,6 +60,36 @@ inline int get_bpr_edge_cost(const TrajLNS& lns, int u, int v) {
 
     return calculate_bpr_cost(f_co, f_reverse);
 }
+
+// ========== EMA Flow Update Functions ==========
+
+// Update BPR flow using EMA (Exponential Moving Average) towards a target integer count
+// Args:
+//   lns - Trajectory LNS object
+//   loc - location index
+//   d - direction (0:East, 1:South, 2:West, 3:North)
+//   target_count - target integer count from Int4 flow
+inline void update_bpr_flow_ema_to_count(TrajLNS& lns, int loc, int d, int target_count);
+
+// Synchronize BPR flow after adding a trajectory (called by add_traj)
+// This should be called AFTER Int4 flow has been incremented
+// Args:
+//   lns - Trajectory LNS object
+//   agent - agent index
+void sync_bpr_after_add(TrajLNS& lns, int agent);
+
+// Synchronize BPR flow after removing a trajectory (called by remove_traj)
+// This should be called AFTER Int4 flow has been decremented
+// Args:
+//   lns - Trajectory LNS object
+//   agent - agent index
+void sync_bpr_after_remove(TrajLNS& lns, int agent);
+
+// Batch initialize BPR flow from all existing trajectories
+// Called during initialization to build the initial flow model
+// Args:
+//   lns - Trajectory LNS object
+void init_bpr_from_all_trajs(TrajLNS& lns);
 
 } // namespace TrafficMAPF
 
